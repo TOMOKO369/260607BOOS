@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>コミティア ブースツール</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #F7F6FF; --surface: #FFFFFF; --surface2: #F1EFE8;
+    --border: #DDDBE8; --text: #1a1a2e; --muted: #6B6880;
+    --accent: #4A4A8A; --accent-light: #EEEDFE; --accent-mid: #7F77DD;
+    --green: #0F6E56; --green-light: #E1F5EE;
+    --red: #A32D2D; --red-light: #FCEBEB;
+    --radius: 12px; --radius-sm: 8px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12101E; --surface: #1E1B30; --surface2: #2A2640;
+      --border: #3A3655; --text: #E8E6F8; --muted: #9B98B8;
+      --accent: #7F77DD; --accent-light: #26215C;
+      --green-light: #04342C; --red-light: #501313;
+    }
+  }
+  body { font-family: -apple-system, 'Hiragino Sans', 'Noto Sans JP', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding-bottom: 3rem; }
+  .tab-bar { display: flex; background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
+  .tab-btn { flex: 1; height: 52px; border: none; background: transparent; color: var(--muted); font-size: 14px; font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; transition: color 0.15s, border-color 0.15s; }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent-mid); }
+  .page { display: none; padding: 1.25rem 1rem; }
+  .page.active { display: block; }
+  .page-title { font-size: 18px; font-weight: 700; color: var(--accent); margin-bottom: 1.25rem; text-align: center; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; margin-bottom: 1rem; }
+  .card-title { font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.875rem; }
+  .price-row { display: flex; align-items: center; gap: 10px; }
+  .price-row input, .recv-custom input { -moz-appearance: textfield; appearance: textfield; }
+  .price-row input::-webkit-inner-spin-button, .recv-custom input::-webkit-inner-spin-button { display: none; }
+  .price-row input { flex: 1; height: 48px; font-size: 22px; font-weight: 700; text-align: right; border: 1.5px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); color: var(--text); padding: 0 12px; outline: none; }
+  .price-row input:focus, .recv-custom input:focus { border-color: var(--accent-mid); }
+  .price-unit { font-size: 15px; color: var(--muted); }
+  .recv-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 0.75rem; }
+  .recv-btn { height: 46px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); background: var(--surface2); color: var(--text); font-size: 14px; font-weight: 600; cursor: pointer; }
+  .recv-btn.active { background: var(--accent-light); border-color: var(--accent-mid); color: var(--accent); }
+  .recv-custom { display: flex; align-items: center; gap: 8px; }
+  .recv-custom input { flex: 1; height: 44px; font-size: 18px; font-weight: 700; text-align: right; border: 1.5px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); color: var(--text); padding: 0 10px; outline: none; }
+  .result-box { border-radius: var(--radius); padding: 1.25rem; margin-bottom: 1rem; text-align: center; border: 1.5px solid var(--border); background: var(--surface2); }
+  .result-box.ok { background: var(--green-light); border-color: #1D9E75; }
+  .result-box.ng { background: var(--red-light); border-color: #E24B4A; }
+  .result-label { font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 4px; }
+  .result-amount { font-size: 40px; font-weight: 800; letter-spacing: -0.02em; }
+  .result-box.ok .result-amount { color: var(--green); }
+  .result-box.ng .result-amount { color: var(--red); }
+  .result-note { font-size: 13px; color: var(--muted); margin-top: 6px; }
+  .breakdown { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1rem; display: none; }
+  .breakdown-title { font-size: 12px; color: var(--muted); font-weight: 700; margin-bottom: 0.75rem; }
+  .breakdown-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 15px; }
+  .breakdown-row:last-child { border-bottom: none; }
+  .bd-denom { color: var(--muted); }
+  .bd-count { font-weight: 700; }
+  .coins-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
+  .coin-block { background: var(--surface2); border-radius: var(--radius-sm); padding: 12px 8px; text-align: center; }
+  .coin-denom { font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 8px; }
+  .coin-controls { display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .coin-btn { width: 32px; height: 32px; border-radius: 50%; border: 1.5px solid var(--border); background: var(--surface); color: var(--text); font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .coin-btn:active { background: var(--accent-light); }
+  .coin-count { font-size: 22px; font-weight: 700; min-width: 32px; text-align: center; }
+  .coin-sub { font-size: 11px; color: var(--muted); margin-top: 5px; }
+  .totals-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+  .total-card { background: var(--accent-light); border-radius: var(--radius-sm); padding: 10px; text-align: center; }
+  .total-card .t-label { font-size: 11px; color: var(--accent); font-weight: 700; }
+  .total-card .t-value { font-size: 22px; font-weight: 800; color: var(--accent); }
+  .btn-row { display: flex; gap: 8px; }
+  .btn-main { flex: 1; height: 48px; background: var(--accent-light); border: 1.5px solid var(--accent-mid); border-radius: var(--radius-sm); color: var(--accent); font-size: 14px; font-weight: 700; cursor: pointer; }
+  .btn-sub { flex: 0 0 72px; height: 48px; background: var(--surface2); border: 1.5px solid var(--border); border-radius: var(--radius-sm); color: var(--muted); font-size: 12px; font-weight: 600; cursor: pointer; }
+  .btn-reset { width: 100%; height: 44px; background: var(--surface2); border: 1.5px solid var(--border); border-radius: var(--radius-sm); color: var(--muted); font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 0.75rem; }
+  .calc-display { background: var(--surface2); border-radius: var(--radius); padding: 16px 20px; margin-bottom: 12px; min-height: 100px; display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-end; }
+  .calc-expr { font-size: 14px; color: var(--muted); min-height: 20px; word-break: break-all; text-align: right; }
+  .calc-current { font-size: 44px; font-weight: 800; letter-spacing: -0.02em; color: var(--text); word-break: break-all; text-align: right; }
+  .calc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .c-btn { height: 68px; border-radius: var(--radius-sm); border: none; cursor: pointer; font-size: 24px; font-weight: 600; display: flex; align-items: center; justify-content: center; transition: opacity 0.1s; }
+  .c-btn:active { opacity: 0.65; }
+  .c-num { background: var(--surface); border: 1px solid var(--border); color: var(--text); }
+  .c-op  { background: var(--accent-light); color: var(--accent); border: 1px solid var(--accent-mid); }
+  .c-eq  { background: var(--accent); color: #fff; border: 1px solid var(--accent); font-size: 28px; }
+  .c-ac  { background: var(--red-light); color: var(--red); border: 1px solid #E24B4A; font-size: 16px; }
+  .c-del { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); font-size: 20px; }
+  .c-zero { grid-column: span 2; }
+  .calc-to-price { margin-top: 12px; width: 100%; height: 48px; background: var(--green-light); border: 1.5px solid #1D9E75; border-radius: var(--radius-sm); color: var(--green); font-size: 14px; font-weight: 700; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="switchTab('change',this)">💴 お釣り計算</button>
+  <button class="tab-btn" onclick="switchTab('calc',this)">🔢 計算機</button>
+</div>
+
+<div class="page active" id="page-change">
+  <p class="page-title">お釣り計算</p>
+  <div class="card">
+    <div class="card-title">商品金額</div>
+    <div class="price-row">
+      <input type="number" id="price" placeholder="500" min="0" step="100" oninput="calcChange()">
+      <span class="price-unit">円</span>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">受け取り金額</div>
+    <div class="recv-grid">
+      <button class="recv-btn" onclick="setReceived(100,this)">100円</button>
+      <button class="recv-btn" onclick="setReceived(500,this)">500円</button>
+      <button class="recv-btn" onclick="setReceived(1000,this)">1,000円</button>
+      <button class="recv-btn" onclick="setReceived(2000,this)">2,000円</button>
+      <button class="recv-btn" onclick="setReceived(5000,this)">5,000円</button>
+      <button class="recv-btn" onclick="setReceived(10000,this)">10,000円</button>
+    </div>
+    <div class="recv-custom">
+      <span style="font-size:13px;color:var(--muted);white-space:nowrap">その他</span>
+      <input type="number" id="received" placeholder="金額を入力" min="0" oninput="clearActive();calcChange()">
+      <span class="price-unit">円</span>
+    </div>
+  </div>
+  <div id="result-box" class="result-box">
+    <div class="result-label">お釣り</div>
+    <div class="result-amount" id="result-amount">— 円</div>
+    <div class="result-note" id="result-note">金額を入力してください</div>
+  </div>
+  <div class="breakdown" id="breakdown">
+    <div class="breakdown-title">お釣りの内訳</div>
+    <div id="breakdown-body"></div>
+  </div>
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.875rem"><span class="card-title" style="margin-bottom:0">手持ち釣り銭</span><span style="font-size:16px;font-weight:700;color:var(--accent)" id="coins-total"></span></div>
+    <div class="coins-grid" id="coins-grid"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">累計</div>
+    <div class="totals-grid">
+      <div class="total-card"><div class="t-label">総売上</div><div class="t-value" id="total-sales">0円</div></div>
+      <div class="total-card"><div class="t-label">取引回数</div><div class="t-value" id="total-count">0回</div></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn-main" onclick="addTransaction()">✅ この取引を記録</button>
+      <button class="btn-sub" onclick="resetTotals()">累計<br>リセット</button>
+    </div>
+  </div>
+  <button class="btn-reset" onclick="resetInputs()">↩ 入力をリセット</button>
+</div>
+
+<div class="page" id="page-calc">
+  <p class="page-title">計算機</p>
+  <div class="calc-display">
+    <div class="calc-expr" id="calc-expr"></div>
+    <div class="calc-current" id="calc-current">0</div>
+  </div>
+  <div class="calc-grid">
+    <button class="c-btn c-ac" onclick="calcAC()">AC</button>
+    <button class="c-btn c-del" onclick="calcDel()">⌫</button>
+    <button class="c-btn c-op" onclick="calcOp('%')">%</button>
+    <button class="c-btn c-op" onclick="calcOp('/')">÷</button>
+    <button class="c-btn c-num" onclick="calcNum('7')">7</button>
+    <button class="c-btn c-num" onclick="calcNum('8')">8</button>
+    <button class="c-btn c-num" onclick="calcNum('9')">9</button>
+    <button class="c-btn c-op" onclick="calcOp('*')">×</button>
+    <button class="c-btn c-num" onclick="calcNum('4')">4</button>
+    <button class="c-btn c-num" onclick="calcNum('5')">5</button>
+    <button class="c-btn c-num" onclick="calcNum('6')">6</button>
+    <button class="c-btn c-op" onclick="calcOp('-')">−</button>
+    <button class="c-btn c-num" onclick="calcNum('1')">1</button>
+    <button class="c-btn c-num" onclick="calcNum('2')">2</button>
+    <button class="c-btn c-num" onclick="calcNum('3')">3</button>
+    <button class="c-btn c-op" onclick="calcOp('+')">+</button>
+    <button class="c-btn c-num c-zero" onclick="calcNum('0')">0</button>
+    <button class="c-btn c-num" onclick="calcNum('.')">.</button>
+    <button class="c-btn c-eq" onclick="calcEq()">=</button>
+  </div>
+  <button class="calc-to-price" onclick="sendToPrice()">➡ この金額をお釣り計算の「商品金額」にセット</button>
+</div>
+
+<script>
+function switchTab(id, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  btn.classList.add('active');
+}
+
+const coins = { 100: 10, 500: 5, 1000: 5 };
+let totalSales = 0, totalCount = 0;
+
+function buildCoinsGrid() {
+  const grid = document.getElementById('coins-grid');
+  grid.innerHTML = '';
+  [100, 500, 1000].forEach(d => {
+    const block = document.createElement('div');
+    block.className = 'coin-block';
+    block.innerHTML = '<div class="coin-denom">' + d.toLocaleString() + '円</div>' +
+      '<div class="coin-controls">' +
+      '<button class="coin-btn" onclick="adjustCoin(' + d + ',-1)">−</button>' +
+      '<div class="coin-count" id="coin-' + d + '">' + coins[d] + '</div>' +
+      '<button class="coin-btn" onclick="adjustCoin(' + d + ',1)">＋</button></div>' +
+      '<div class="coin-sub" id="coin-sub-' + d + '">' + (coins[d]*d).toLocaleString() + '円</div>';
+    grid.appendChild(block);
+  });
+}
+
+function adjustCoin(d, delta) {
+  coins[d] = Math.max(0, coins[d] + delta);
+  document.getElementById('coin-' + d).textContent = coins[d];
+  document.getElementById('coin-sub-' + d).textContent = (coins[d]*d).toLocaleString() + '円';
+  updateCoinsTotal();
+}
+function updateCoinsTotal() {
+  const total = Object.entries(coins).reduce((s,[d,n]) => s + d*n, 0);
+  document.getElementById('coins-total').textContent = '合計 ' + total.toLocaleString() + '円';
+}
+
+function setReceived(v, btn) {
+  document.getElementById('received').value = v;
+  clearActive(); btn.classList.add('active');
+  calcChange();
+}
+function clearActive() { document.querySelectorAll('.recv-btn').forEach(b => b.classList.remove('active')); }
+
+function calcChange() {
+  const price = parseInt(document.getElementById('price').value) || 0;
+  const received = parseInt(document.getElementById('received').value) || 0;
+  const box = document.getElementById('result-box');
+  const amtEl = document.getElementById('result-amount');
+  const noteEl = document.getElementById('result-note');
+  const bdDiv = document.getElementById('breakdown');
+  if (!price || !received) {
+    box.className = 'result-box'; amtEl.textContent = '— 円'; noteEl.textContent = '金額を入力してください'; bdDiv.style.display = 'none'; return;
+  }
+  const change = received - price;
+  if (change < 0) {
+    box.className = 'result-box ng';
+    amtEl.textContent = Math.abs(change).toLocaleString() + ' 円不足';
+    noteEl.textContent = 'あと ' + Math.abs(change).toLocaleString() + '円 受け取ってください';
+    bdDiv.style.display = 'none';
+  } else if (change === 0) {
+    box.className = 'result-box ok'; amtEl.textContent = 'ちょうど！'; noteEl.textContent = 'お釣りなし'; bdDiv.style.display = 'none';
+  } else {
+    box.className = 'result-box ok';
+    amtEl.textContent = change.toLocaleString() + ' 円';
+    noteEl.textContent = price.toLocaleString() + '円 / 受取 ' + received.toLocaleString() + '円';
+    showBreakdown(change);
+  }
+}
+
+function showBreakdown(change) {
+  const bdDiv = document.getElementById('breakdown');
+  const body = document.getElementById('breakdown-body');
+  bdDiv.style.display = 'block';
+  let rem = change; const rows = [];
+  [1000, 500, 100, 50, 10, 5, 1].forEach(d => { const n = Math.floor(rem/d); if(n>0){rows.push({d,n}); rem-=d*n;} });
+  if (!rows.length) { bdDiv.style.display = 'none'; return; }
+  body.innerHTML = rows.map(r => '<div class="breakdown-row"><span class="bd-denom">' + r.d.toLocaleString() + '円</span><span class="bd-count">' + r.n + '枚</span></div>').join('');
+}
+
+function addTransaction() {
+  const price = parseInt(document.getElementById('price').value) || 0;
+  if (!price) { alert('商品金額を入力してください'); return; }
+  totalSales += price; totalCount++;
+  document.getElementById('total-sales').textContent = totalSales.toLocaleString() + '円';
+  document.getElementById('total-count').textContent = totalCount + '回';
+  resetInputs();
+}
+
+function resetInputs() {
+  document.getElementById('price').value = '';
+  document.getElementById('received').value = '';
+  clearActive(); calcChange();
+}
+
+function resetTotals() {
+  if (!confirm('累計をリセットしますか？')) return;
+  totalSales = 0; totalCount = 0;
+  document.getElementById('total-sales').textContent = '0円';
+  document.getElementById('total-count').textContent = '0回';
+}
+
+buildCoinsGrid();
+updateCoinsTotal();
+
+// ===== 計算機 =====
+let cExpr = '', cCurrent = '0', cEvaled = false;
+
+function updateDisp() {
+  document.getElementById('calc-expr').textContent = cExpr;
+  const n = parseFloat(cCurrent);
+  document.getElementById('calc-current').textContent = isNaN(n) ? cCurrent : n.toLocaleString('ja-JP', {maximumFractionDigits:8});
+}
+
+function calcNum(n) {
+  if (cEvaled) { cCurrent = '0'; cExpr = ''; cEvaled = false; }
+  if (n === '.' && cCurrent.includes('.')) return;
+  cCurrent = (cCurrent === '0' && n !== '.') ? n : cCurrent + n;
+  updateDisp();
+}
+
+function calcOp(op) {
+  cEvaled = false;
+  cExpr = cExpr + cCurrent + ' ' + op + ' ';
+  cCurrent = '0';
+  updateDisp();
+}
+
+function calcEq() {
+  if (!cExpr) return;
+  const expr = cExpr + cCurrent;
+  const safe = expr.replace(/(\d+(\.\d+)?)\s*%/g, '($1/100)');
+  try {
+    const result = Function('"use strict"; return (' + safe + ')')();
+    cExpr = expr + ' =';
+    cCurrent = String(parseFloat(result.toFixed(10)));
+    cEvaled = true;
+  } catch(e) { cCurrent = 'エラー'; cExpr = ''; }
+  updateDisp();
+}
+
+function calcAC() { cExpr = ''; cCurrent = '0'; cEvaled = false; updateDisp(); }
+
+function calcDel() {
+  if (cEvaled) { calcAC(); return; }
+  cCurrent = cCurrent.length > 1 ? cCurrent.slice(0,-1) : '0';
+  updateDisp();
+}
+
+function sendToPrice() {
+  const val = parseFloat(cCurrent);
+  if (isNaN(val) || val <= 0) { alert('有効な金額を先に計算してください'); return; }
+  document.getElementById('price').value = Math.round(val);
+  const tabs = document.querySelectorAll('.tab-btn');
+  switchTab('change', tabs[0]);
+  calcChange();
+}
+</script>
+</body>
+</html>
